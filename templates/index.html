@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signet — RSA Digital Signatures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Background -->
+    <div class="bg-animation">
+        <div class="bg-gradient"></div>
+        <div class="bg-grain"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="seal-mark"><i class="fas fa-stamp"></i></span>
+            <span>Signet</span>
+        </div>
+        <div class="nav-status" id="keyStatus">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <span id="statusText">Checking keys...</span>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <p class="hero-eyebrow">RSA &amp; SHA-256, no third parties involved</p>
+            <h1>Sign it. Seal it. <em>Prove it.</em></h1>
+            <p class="hero-sub">Every file gets hashed and the hash gets locked with your private key — anyone with your public key can tell if a single byte moved.</p>
+        </section>
+
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <div class="tabs" id="tabs">
+                <span class="tab-indicator" id="tabIndicator" aria-hidden="true"></span>
+                <button class="tab active" data-tab="keys">
+                    <i class="fas fa-key"></i>
+                    <span>Key Management</span>
+                </button>
+                <button class="tab" data-tab="sign-file">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Sign File</span>
+                </button>
+                <button class="tab" data-tab="verify">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Verify File</span>
+                </button>
+                <button class="tab" data-tab="sign-text">
+                    <i class="fas fa-pen-fancy"></i>
+                    <span>Sign Text</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Key Management Tab -->
+            <div class="tab-pane active" id="keys">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-key"></i> RSA Key Management</h2>
+                        <p>Generate a key pair before you sign or verify anything. Bigger keys are slower but harder to break.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="key-status-box" id="keyStatusBox">
+                            <div class="key-icon">
+                                <i class="fas fa-lock" id="keyIcon"></i>
+                            </div>
+                            <div class="key-info">
+                                <h3 id="keyTitle">No Keys Found</h3>
+                                <p id="keyDescription">Generate a new RSA key pair to start signing files</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Select Key Size</label>
+                            <div class="key-size-options">
+                                <label class="radio-card">
+                                    <input type="radio" name="keySize" value="1024" checked>
+                                    <div class="radio-content">
+                                        <span class="radio-title">1024-bit</span>
+                                        <span class="radio-desc">Snappy, but don't trust it with anything real</span>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="keySize" value="2048">
+                                    <div class="radio-content">
+                                        <span class="radio-title">2048-bit</span>
+                                        <span class="radio-desc">The sensible default</span>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="keySize" value="4096">
+                                    <div class="radio-content">
+                                        <span class="radio-title">4096-bit</span>
+                                        <span class="radio-desc">Overkill, and a little slow to generate</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg" id="generateKeysBtn">
+                            <i class="fas fa-stamp"></i>
+                            Generate New Keys
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign File Tab -->
+            <div class="tab-pane" id="sign-file">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-file-signature"></i> Sign a File</h2>
+                        <p>We hash it with SHA-256, then lock that hash with your private key. That's your signature.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-zone" id="signUploadZone">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-arrow-up"></i>
+                                <h3>Drop your file here</h3>
+                                <p>or click to browse</p>
+                                <span class="upload-hint">Any file type, up to 16MB</span>
+                            </div>
+                            <input type="file" id="signFileInput" hidden>
+                        </div>
+                        
+                        <div class="selected-file hidden" id="signSelectedFile">
+                            <div class="file-icon">
+                                <i class="fas fa-file"></i>
+                            </div>
+                            <div class="file-details">
+                                <span class="file-name" id="signFileName"></span>
+                                <span class="file-size" id="signFileSize"></span>
+                            </div>
+                            <button class="btn-icon" id="removeSignFile">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-lg" id="signFileBtn" disabled>
+                            <i class="fas fa-signature"></i>
+                            Sign File
+                        </button>
+                        
+                        <div class="result-box hidden" id="signResult">
+                            <div class="result-header success">
+                                <i class="fas fa-check-circle"></i>
+                                <span>File Signed Successfully!</span>
+                            </div>
+                            <div class="result-body">
+                                <div class="result-item">
+                                    <label>File Name</label>
+                                    <span id="resultSignFileName"></span>
+                                </div>
+                                <div class="result-item">
+                                    <label>SHA-256 Hash</label>
+                                    <code id="resultSignHash"></code>
+                                </div>
+                                <div class="result-item">
+                                    <label>Timestamp</label>
+                                    <span id="resultSignTime"></span>
+                                </div>
+                            </div>
+                            <div class="result-actions">
+                                <button class="btn btn-secondary" id="downloadSigBtn">
+                                    <i class="fas fa-download"></i>
+                                    Download Signature (.sig)
+                                </button>
+                                <button class="btn btn-outline" id="copySigBtn">
+                                    <i class="fas fa-copy"></i>
+                                    Copy Signature
+                                </button>
+                            </div>
+                            <div class="signature-preview">
+                                <label>Signature Data (JSON)</label>
+                                <pre id="signatureJson"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verify File Tab -->
+            <div class="tab-pane" id="verify">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-check-circle"></i> Verify a File</h2>
+                        <p>Upload the original file next to its signature — if even one bit changed, this catches it.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="verify-grid">
+                            <div class="verify-section">
+                                <h4><i class="fas fa-file"></i> Original File</h4>
+                                <div class="upload-zone small" id="verifyFileZone">
+                                    <div class="upload-content">
+                                        <i class="fas fa-file-upload"></i>
+                                        <p>Drop file here or click to browse</p>
+                                    </div>
+                                    <input type="file" id="verifyFileInput" hidden>
+                                </div>
+                                <div class="selected-file hidden" id="verifySelectedFile">
+                                    <div class="file-icon">
+                                        <i class="fas fa-file"></i>
+                                    </div>
+                                    <div class="file-details">
+                                        <span class="file-name" id="verifyFileName"></span>
+                                        <span class="file-size" id="verifyFileSize"></span>
+                                    </div>
+                                    <button class="btn-icon" id="removeVerifyFile">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="verify-section">
+                                <h4><i class="fas fa-file-code"></i> Signature File (.sig)</h4>
+                                <div class="upload-zone small" id="verifySigZone">
+                                    <div class="upload-content">
+                                        <i class="fas fa-file-signature"></i>
+                                        <p>Drop .sig file or click to browse</p>
+                                    </div>
+                                    <input type="file" id="verifySigInput" accept=".sig,.json" hidden>
+                                </div>
+                                <div class="selected-file hidden" id="verifySelectedSig">
+                                    <div class="file-icon">
+                                        <i class="fas fa-file-code"></i>
+                                    </div>
+                                    <div class="file-details">
+                                        <span class="file-name" id="verifySigName"></span>
+                                        <span class="file-size" id="verifySigSize"></span>
+                                    </div>
+                                    <button class="btn-icon" id="removeVerifySig">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider-text">
+                            <span>OR paste signature JSON</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <textarea id="signatureTextarea" placeholder='Paste signature JSON here...'></textarea>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-lg" id="verifyBtn" disabled>
+                            <i class="fas fa-shield-check"></i>
+                            Verify Signature
+                        </button>
+                        
+                        <div class="result-box hidden" id="verifyResult">
+                            <div class="result-header" id="verifyResultHeader">
+                                <i class="fas fa-check-circle"></i>
+                                <span id="verifyResultTitle">Verification Result</span>
+                            </div>
+                            <div class="result-body">
+                                <div class="verification-badge" id="verificationBadge">
+                                    <i class="fas fa-check"></i>
+                                    <span>VALID</span>
+                                </div>
+                                <div class="result-item">
+                                    <label>File Name</label>
+                                    <span id="resultVerifyFileName"></span>
+                                </div>
+                                <div class="result-item">
+                                    <label>Calculated Hash</label>
+                                    <code id="resultVerifyCalcHash"></code>
+                                </div>
+                                <div class="result-item">
+                                    <label>Original Hash</label>
+                                    <code id="resultVerifyOrigHash"></code>
+                                </div>
+                                <div class="result-item">
+                                    <label>Algorithm</label>
+                                    <span id="resultVerifyAlgo"></span>
+                                </div>
+                                <div class="result-item">
+                                    <label>Signed On</label>
+                                    <span id="resultVerifyTime"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign Text Tab -->
+            <div class="tab-pane" id="sign-text">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-pen-fancy"></i> Sign Text Message</h2>
+                        <p>A quick walkthrough: type a message, watch it get signed as Bob and checked as Alice.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Enter your message</label>
+                            <textarea id="textMessage" placeholder="Type your message here..." rows="4"></textarea>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-lg" id="signTextBtn">
+                            <i class="fas fa-pen-nib"></i>
+                            Sign & Verify Message
+                        </button>
+                        
+                        <div class="process-visualization hidden" id="textSignProcess">
+                            <div class="process-step">
+                                <div class="step-header">
+                                    <div class="step-icon bob">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <h4>Bob (Sender) - Signing Process</h4>
+                                </div>
+                                <div class="step-content">
+                                    <div class="step-item">
+                                        <span class="step-label">1. Original Message</span>
+                                        <div class="step-value" id="textOriginalMsg"></div>
+                                    </div>
+                                    <div class="step-item">
+                                        <span class="step-label">2. SHA-256 Hash</span>
+                                        <code class="step-value hash" id="textBobHash"></code>
+                                    </div>
+                                    <div class="step-item">
+                                        <span class="step-label">3. Digital Signature (RSA Encrypted Hash)</span>
+                                        <code class="step-value signature" id="textSignature"></code>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="process-arrow">
+                                <i class="fas fa-arrow-down"></i>
+                                <span>Message + Signature sent to Alice</span>
+                            </div>
+                            
+                            <div class="process-step">
+                                <div class="step-header">
+                                    <div class="step-icon alice">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <h4>Alice (Receiver) - Verification Process</h4>
+                                </div>
+                                <div class="step-content">
+                                    <div class="step-item">
+                                        <span class="step-label">1. Received Message Hash</span>
+                                        <code class="step-value hash" id="textAliceHash"></code>
+                                    </div>
+                                    <div class="step-item">
+                                        <span class="step-label">2. Decrypted Signature (Using Public Key)</span>
+                                        <code class="step-value hash" id="textDecryptedHash"></code>
+                                    </div>
+                                    <div class="step-item verification-result">
+                                        <span class="step-label">3. Verification Result</span>
+                                        <div class="verification-status" id="textVerificationStatus">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Hashes match! Message is authentic.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p><i class="fas fa-stamp"></i> Signet</p>
+            <p>Pure-Python RSA &amp; SHA-256 — nothing leaves your machine.</p>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
