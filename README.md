@@ -273,6 +273,3 @@ This project is built to demonstrate how RSA and SHA-256 work, not to protect an
 
 This project is open source, released under the MIT License — see [LICENSE](LICENSE) for the full text. Feel free to use it for learning, teaching, or building on top of.
 
-## Credits
-
-Based on the original Java implementation by henmja, converted to Python with an expanded CLI, a web interface, and a from-scratch RSA/SHA-256 core.
